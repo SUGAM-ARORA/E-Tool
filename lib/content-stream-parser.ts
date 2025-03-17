@@ -1,4 +1,9 @@
-import { PDFContentStream, PDFOperator, PDFName, PDFNumber, PDFString, PDFArray } from 'pdf-lib';
+import { PDFContentStream, PDFName, PDFNumber, PDFString, PDFArray } from 'pdf-lib';
+
+interface PDFOperator {
+  op: string;
+  args: any[];
+}
 
 interface Token {
   type: 'number' | 'string' | 'name' | 'array' | 'operator';
@@ -24,7 +29,7 @@ export class ContentStreamParser {
     for (const token of this.tokens) {
       if (token.type === 'operator') {
         operators.push({
-          operator: token.value,
+          op: token.value,
           args: [...args],
         });
         args = [];
@@ -225,7 +230,7 @@ export class ContentStreamParser {
 
     return {
       type: 'array',
-      value: PDFArray.of(array),
+      value: PDFArray,
     };
   }
 

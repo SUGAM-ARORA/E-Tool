@@ -1,4 +1,4 @@
-import { PDFDocument, PDFPage } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import { PDFParser } from './pdf-parser';
 import { ContentStreamParser } from './content-stream-parser';
 
@@ -21,6 +21,10 @@ interface TextElement {
   height: number;
   fontSize: number;
   fontName: string;
+  page: {
+    width: number;
+    height: number;
+  };
 }
 
 interface TableRegion {
@@ -54,6 +58,9 @@ interface ExtractionOptions {
   cellMerging: boolean;
   formatPreservation: boolean;
   processingMode: 'fast' | 'balanced' | 'accurate';
+  detectBorders: boolean;
+  detectHeaders: boolean;
+  mergeCells: boolean;
 }
 
 export class TableExtractor {
@@ -69,6 +76,9 @@ export class TableExtractor {
       cellMerging: true,
       formatPreservation: true,
       processingMode: 'balanced',
+      detectBorders: true,
+      detectHeaders: true,
+      mergeCells: true,
       ...options,
     };
     this.parser = new PDFParser();
@@ -86,10 +96,10 @@ export class TableExtractor {
       const textElements = await this.parser.extractTextElements(page);
       const lines = await this.parser.extractLines(page);
 
-      // Identify table regions
+      // Detect table regions
       const tableRegions = this.detectTableRegions(textElements, lines, width, height);
 
-      // Process each detected table region
+      // Extract tables from regions
       for (const region of tableRegions) {
         const table = this.extractTableFromRegion(region);
         if (table && this.validateTable(table)) {

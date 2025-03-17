@@ -45,12 +45,12 @@ A powerful tool for extracting tables from PDF documents without relying on exte
    ```
 
 2. Install dependencies:
-   ```bash
+```bash
    npm install
-   ```
+```
 
 3. Start the development server:
-   ```bash
+```bash
    npm run dev
    ```
 

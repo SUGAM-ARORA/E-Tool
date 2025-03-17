@@ -382,10 +382,7 @@ export class TableExtractor {
           }
         }
       } while (merged);
-      
-      merged.push(current);
     }
-    
     return merged;
   }
 

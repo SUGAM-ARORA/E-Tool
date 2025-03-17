@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, Container, Typography, Button, Snackbar, Alert, useTheme, useMediaQuery, Paper, 
   Switch, FormControlLabel, Chip, IconButton, Tooltip, CircularProgress, Drawer,
   List, ListItem, ListItemText, ListItemIcon, Slider, Select, MenuItem, FormControl,
   InputLabel, Collapse, Stepper, Step, StepLabel, StepContent, Backdrop, Zoom,
-  SpeedDial, SpeedDialAction, SpeedDialIcon, Divider, Stack, Badge
+  SpeedDial, SpeedDialAction, SpeedDialIcon, Divider, Stack, Badge, Grid, Card, CardContent
 } from '@mui/material';
 import { styled, keyframes } from '@mui/material/styles';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -24,8 +24,10 @@ import {
   DarkModeIcon as OldDarkModeIcon, LightModeIcon as OldLightModeIcon, SettingsIcon as OldSettingsIcon,
   BatchPredictionIcon as OldBatchPredictionIcon, TableChartIcon, TuneIcon, FormatAlignLeftIcon,
   GridOnIcon, AutoFixHighIcon, ExpandMore, ExpandLess, Folder, FolderOpen,
-  Description, CheckCircle, Error, Refresh, Save, Share, Download, Print
+  Description, CheckCircle, Error, Refresh, Save, Share, Download, Print, Preview
 } from '@mui/icons-material';
+import { extractTables } from '../lib/table-extractor';
+import { PDFDocument } from 'pdf-lib';
 
 const pulse = keyframes`
   0% {
@@ -271,11 +273,35 @@ const FloatingActionButton = styled(SpeedDial)(({ theme }) => ({
   right: theme.spacing(4),
 }));
 
+const DropzoneArea = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(4),
+  textAlign: 'center',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  border: `2px dashed ${theme.palette.primary.main}`,
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+    borderColor: theme.palette.primary.dark,
+  },
+}));
+
+const FileCard = styled(Card)(({ theme }) => ({
+  marginBottom: theme.spacing(2),
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: theme.shadows[4],
+  },
+}));
+
+const steps = ['Upload PDF', 'Extract Tables', 'Review Results'];
+
 export default function Home() {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [files, setFiles] = useState<File[]>([]);
+  const [activeStep, setActiveStep] = useState(0);
+  const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [processingOptions, setProcessingOptions] = useState({
@@ -302,7 +328,6 @@ export default function Home() {
     ocrEnabled: true,
   });
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
-  const [activeStep, setActiveStep] = useState(0);
   const [processingSteps, setProcessingSteps] = useState([
     { label: 'Upload Files', completed: false },
     { label: 'Configure Settings', completed: false },
@@ -322,8 +347,8 @@ export default function Home() {
   });
 
   useEffect(() => {
-    metrics.processingQueueSize.set(selectedFiles.length);
-  }, [selectedFiles]);
+    metrics.processingQueueSize.set(files.length);
+  }, [files]);
 
   useEffect(() => {
     // Update stats when results change
@@ -345,52 +370,84 @@ export default function Home() {
     // Update processing steps based on state
     setProcessingSteps(prev => prev.map((step, index) => ({
       ...step,
-      completed: index === 0 ? selectedFiles.length > 0 :
+      completed: index === 0 ? files.length > 0 :
                 index === 1 ? settingsOpen :
                 index === 2 ? results.length > 0 :
                 index === 3 ? results.some(r => r.status === 'success') : false
     })));
-  }, [selectedFiles, settingsOpen, results]);
+  }, [files, settingsOpen, results]);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const pdfFiles = acceptedFiles.filter(file => file.type === 'application/pdf');
+    if (pdfFiles.length !== acceptedFiles.length) {
+      setError('Only PDF files are supported');
+      return;
+    }
+    setFiles(prev => [...prev, ...pdfFiles]);
+    setError(null);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
     accept: {
-      'application/pdf': ['.pdf']
+      'application/pdf': ['.pdf'],
     },
-    onDrop: (acceptedFiles) => {
-      const newFiles = acceptedFiles.map(file => {
-        metrics.fileSize.observe(file.size);
-        return file;
-      });
-      setSelectedFiles(prev => [...prev, ...newFiles]);
-      setSnackbar({
-        open: true,
-        message: `Added ${acceptedFiles.length} file(s)`,
-        severity: 'success'
-      });
-    },
-    onDropRejected: () => {
-      setSnackbar({
-        open: true,
-        message: 'Only PDF files are accepted',
-        severity: 'error'
-      });
-    }
+    multiple: true,
   });
 
   const handleRemoveFile = (index: number) => {
-    setSelectedFiles(prev => {
-      const newFiles = prev.filter((_, i) => i !== index);
-      metrics.processingQueueSize.set(newFiles.length);
-      return newFiles;
-    });
+    setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleRetry = async (fileName: string) => {
-    const fileToRetry = selectedFiles.find(f => f.name === fileName);
-    if (fileToRetry) {
-      setIsProcessing(true);
-      await processFile(fileToRetry);
-      setIsProcessing(false);
+  const handleProcessFiles = async () => {
+    setProcessing(true);
+    setError(null);
+    const newResults = [];
+
+    try {
+      for (const file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const extractedTables = await extractTables(pdfDoc);
+        
+        newResults.push({
+          fileName: file.name,
+          status: 'success',
+          tables: extractedTables,
+        });
+      }
+      setResults(newResults);
+      setActiveStep(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process files');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDownload = async (result: any) => {
+    try {
+      const response = await fetch('/api/download', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tables: result.tables }),
+      });
+      
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${result.fileName.replace('.pdf', '')}_tables.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download results');
     }
   };
 
@@ -425,89 +482,6 @@ export default function Home() {
     );
   };
 
-  const processFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append('pdf', file);
-    formData.append('options', JSON.stringify({
-      ...processingOptions,
-      ...advancedOptions,
-    }));
-    const startTime = Date.now();
-
-    try {
-      const response = await axios.post('/api/extract-tables', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const progress = (progressEvent.loaded / progressEvent.total) * 100;
-          setProgress(progress);
-        },
-      });
-
-      const processingTime = Date.now() - startTime;
-      metrics.extractionDuration.observe({ status: 'success' }, processingTime / 1000);
-      metrics.tablesExtracted.inc({ status: 'success' }, response.data.tablesCount);
-
-      return {
-        fileName: file.name,
-        status: 'success',
-        message: `Successfully extracted ${response.data.tablesCount} tables`,
-        tablesExtracted: response.data.tablesCount,
-        outputPath: response.data.outputPath,
-        processingTime,
-        fileSize: file.size,
-        excelData: response.data.tableData // Add this for Excel preview
-      };
-    } catch (error) {
-      const processingTime = Date.now() - startTime;
-      metrics.extractionDuration.observe({ status: 'error' }, processingTime / 1000);
-      metrics.extractionErrors.inc({ error_type: error.response?.data?.error || 'unknown' });
-
-      return {
-        fileName: file.name,
-        status: 'error',
-        message: error.response?.data?.message || 'Failed to extract tables',
-        processingTime,
-        fileSize: file.size
-      };
-    }
-  };
-
-  const handleExtractTables = async () => {
-    setIsProcessing(true);
-    setProgress(0);
-    const newResults = [];
-    const totalFiles = selectedFiles.length;
-
-    try {
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const result = await processFile(selectedFiles[i]);
-        newResults.push(result);
-        setProgress(((i + 1) / totalFiles) * 100);
-      }
-
-      setSnackbar({
-        open: true,
-        message: `Processed ${totalFiles} file(s)`,
-        severity: 'success'
-      });
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'An error occurred during processing',
-        severity: 'error'
-      });
-    } finally {
-      setResults(newResults);
-      setIsProcessing(false);
-      setProgress(100);
-    }
-  };
-
-  const handleStepClick = (index: number) => {
-    setActiveStep(index);
-    if (index === 1) setSettingsOpen(true);
-  };
-
   const speedDialActions = [
     { icon: <Save />, name: 'Save Session', action: () => {} },
     { icon: <Share />, name: 'Share Results', action: () => {} },
@@ -536,7 +510,7 @@ export default function Home() {
                 {step.completed ? 'Completed' : 'Pending'}
               </Typography>
             }
-            onClick={() => handleStepClick(index)}
+            onClick={() => setActiveStep(index)}
             sx={{ cursor: 'pointer' }}
           >
             <Typography variant="subtitle1" fontWeight={500}>
@@ -587,10 +561,10 @@ export default function Home() {
           },
         }}
       >
-        Selected Files ({selectedFiles.length})
+        Selected Files ({files.length})
       </Typography>
       <Stack spacing={2}>
-        {selectedFiles.map((file, index) => (
+        {files.map((file, index) => (
           <Zoom in key={index} style={{ transitionDelay: `${index * 100}ms` }}>
             <SelectedFileBox elevation={2}>
               <Box display="flex" alignItems="center" gap={2}>
@@ -614,7 +588,7 @@ export default function Home() {
                   startIcon={<DeleteIcon />}
                   onClick={() => handleRemoveFile(index)}
                   color="error"
-                  disabled={isProcessing}
+                  disabled={processing}
                   variant="contained"
                   size="small"
                 >
@@ -628,15 +602,15 @@ export default function Home() {
       <Box mt={4} display="flex" justifyContent="center">
         <ActionButton
           variant="contained"
-          onClick={handleExtractTables}
-          disabled={isProcessing}
+          onClick={handleProcessFiles}
+          disabled={processing}
           size="large"
           sx={{ 
             minWidth: isMobile ? '100%' : 250,
             py: 2,
           }}
         >
-          {isProcessing ? (
+          {processing ? (
             <Box display="flex" alignItems="center" gap={2}>
               <CircularProgress size={24} color="inherit" />
               Processing...
@@ -912,7 +886,7 @@ export default function Home() {
 
         {stats.totalProcessed > 0 && renderStats()}
 
-        <DropzoneBox 
+        <DropzoneArea 
           {...getRootProps()} 
           elevation={3}
           sx={{ 
@@ -936,15 +910,16 @@ export default function Home() {
           <Typography variant="body1" color="text.secondary">
             Drag and drop your PDF files here, or click to select files
           </Typography>
-        </DropzoneBox>
+        </DropzoneArea>
 
-        {selectedFiles.length > 0 && renderSelectedFiles()}
+        {files.length > 0 && renderSelectedFiles()}
 
         <ResultsDisplay
-          isProcessing={isProcessing}
-          progress={progress}
+          isProcessing={processing}
+          progress={0}
           results={results}
-          onRetry={handleRetry}
+          onRetry={() => {}}
+          onDownload={handleDownload}
         />
 
         <Snackbar

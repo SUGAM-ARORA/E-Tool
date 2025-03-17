@@ -18,6 +18,14 @@ const ResultCard = styled(Card)(({ theme }) => ({
   },
 }));
 
+const StyledCard = styled(Card)(({ theme }) => ({
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    boxShadow: theme.shadows[8],
+  },
+}));
+
 const DataVisContainer = styled(Box)(({ theme }) => ({
   padding: theme.spacing(3),
   borderRadius: theme.shape.borderRadius,
@@ -142,7 +150,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
       totalFiles: results.length,
       successRate: (results.filter(r => r.status === 'success').length / results.length) * 100,
       averageSize: results.reduce((acc, r) => acc + (r.data?.size || 0), 0) / results.length,
-      columnTypes: {},
+      columnTypes: {} as Record<string, { numeric: number; categorical: number; total: number }>,
       trends: {},
     };
 
@@ -414,7 +422,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
             </SpeedDial>
             <ActionIconButton size="small" onClick={() => setPreviewOpen(false)}>
               <Close />
-            </ActionIconButton>
+            </IconButton>
           </Box>
         </PreviewHeader>
 
@@ -646,7 +654,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
       {renderStats()}
 
       <Zoom in timeout={500}>
-        <StyledTableContainer>
+        <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
@@ -760,7 +768,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
               ))}
             </TableBody>
           </Table>
-        </StyledTableContainer>
+        </TableContainer>
       </Zoom>
 
       {renderPreviewModal()}
