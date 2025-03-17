@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, CircularProgress, Typography, Paper, Alert, LinearProgress, Fade, Zoom, Table, Grid, Card, CardContent, IconButton, Tooltip, Modal, Button, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, Menu, MenuItem, ListItemIcon, ListItemText, TextField, Chip, Badge, SpeedDial, SpeedDialAction, SpeedDialIcon, Drawer, useMediaQuery, useTheme, Pagination, InputAdornment, Divider, Collapse, Slider, ToggleButton, ToggleButtonGroup, Popover, Stack, Avatar } from '@mui/material';
-import { CheckCircle, Error, AccessTime, Download, Refresh, FileDownload, Preview, Close, FilterList, Sort, ViewColumn, MoreVert, Share, SaveAlt, Print, ContentCopy, Search, FilterAlt, AutoGraph, PictureAsPdf, InsertChart, FormatColorFill, Calculate, TableChart, Visibility, VisibilityOff, TrendingUp, CompareArrows, DataUsage, Summarize, PieChart, BarChart, Timeline, BubbleChart } from '@mui/icons-material';
+import PreviewModal from './PreviewModal';
+import { CheckCircle, Error, AccessTime, Download, Refresh, FileDownload, Preview, Close, FilterList, Sort, ViewColumn, MoreVert, Share, SaveAlt, Print, ContentCopy, Search, FilterAlt, AutoGraph, PictureAsPdf, InsertChart, FormatColorFill, Calculate, TableChart, Visibility, VisibilityOff, TrendingUp, CompareArrows, DataUsage, Summarize, PieChart, BarChart, Timeline, BubbleChart, GridOn } from '@mui/icons-material';
 import { styled, keyframes } from '@mui/material/styles';
 
 const pulseAnimation = keyframes`
@@ -337,7 +338,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
             <ViewColumn />
           </ToggleButton>
           <ToggleButton value="grid">
-            <GridOnIcon />
+            <GridOn />
           </ToggleButton>
         </ToggleButtonGroup>
         <Button
@@ -374,7 +375,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
   const renderPreviewModal = () => (
     <PreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)}>
       <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <PreviewHeader>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box display="flex" alignItems="center" gap={2}>
             <Typography variant="h6">
               Excel Preview: {selectedResult?.fileName}
@@ -420,16 +421,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
                 onClick={() => {}}
               />
             </SpeedDial>
-            <ActionIconButton size="small" onClick={() => setPreviewOpen(false)}>
+            <IconButton size="small" onClick={() => setPreviewOpen(false)}>
               <Close />
             </IconButton>
           </Box>
-        </PreviewHeader>
+        </Box>
 
         {renderPreviewToolbar()}
         {renderDataVisualization()}
         
-        <ExcelPreviewContainer>
+        <Box>
           {viewMode === 'table' && (
             <Table stickyHeader>
               <TableHead>
@@ -606,7 +607,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
               }
             </Grid>
           )}
-        </ExcelPreviewContainer>
+        </Box>
       </Paper>
     </PreviewModal>
   );
