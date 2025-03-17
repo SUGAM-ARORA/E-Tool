@@ -1,14 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Box, CircularProgress, Typography, Paper, Alert, LinearProgress, Fade, Zoom, Table, Grid, Card, CardContent, IconButton, Tooltip, Modal, Button, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, Menu, MenuItem, ListItemIcon, ListItemText, TextField, Chip, Badge, SpeedDial, SpeedDialAction, SpeedDialIcon, Drawer, useMediaQuery, useTheme, Pagination, InputAdornment, Divider, Collapse, Slider, ToggleButton, ToggleButtonGroup, Popover, Stack, Avatar } from '@mui/material';
-import PreviewModal from './PreviewModal';
 import { CheckCircle, Error, AccessTime, Download, Refresh, FileDownload, Preview, Close, FilterList, Sort, ViewColumn, MoreVert, Share, SaveAlt, Print, ContentCopy, Search, FilterAlt, AutoGraph, PictureAsPdf, InsertChart, FormatColorFill, Calculate, TableChart, Visibility, VisibilityOff, TrendingUp, CompareArrows, DataUsage, Summarize, PieChart, BarChart, Timeline, BubbleChart, GridOn } from '@mui/icons-material';
 import { styled, keyframes } from '@mui/material/styles';
+import { PreviewModal } from './PreviewModal';
 
 const pulseAnimation = keyframes`
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
 `;
+
+const AnimatedProgress = styled(LinearProgress)(({ theme }) => ({
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: theme.palette.grey[200],
+  '& .MuiLinearProgress-bar': {
+    borderRadius: 4,
+    background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
+    transition: 'width 0.3s ease-in-out',
+  },
+}));
 
 const ResultCard = styled(Card)(({ theme }) => ({
   position: 'relative',
@@ -470,8 +481,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
               </TableHead>
               <TableBody>
                 {selectedResult?.data.slice(1)
-                  .filter(row => 
-                    row.some(cell => 
+                  .filter((row: any[]) =>
+                    row.some((cell: any) =>
                       String(cell).toLowerCase().includes(searchTerm.toLowerCase())
                     )
                   )
@@ -524,8 +535,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
           {viewMode === 'cards' && (
             <Grid container spacing={2}>
               {selectedResult?.data.slice(1)
-                .filter(row => 
-                  row.some(cell => 
+                .filter((row: any[]) =>
+                  row.some((cell: any) =>
                     String(cell).toLowerCase().includes(searchTerm.toLowerCase())
                   )
                 )
@@ -563,8 +574,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
           {viewMode === 'grid' && (
             <Grid container spacing={1}>
               {selectedResult?.data.slice(1)
-                .filter(row => 
-                  row.some(cell => 
+                .filter((row: any[]) =>
+                  row.some((cell: any) =>
                     String(cell).toLowerCase().includes(searchTerm.toLowerCase())
                   )
                 )
