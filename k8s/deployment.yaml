@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdf-extractor
+  labels:
+    app: pdf-extractor
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pdf-extractor
+  template:
+    metadata:
+      labels:
+        app: pdf-extractor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+    spec:
+      containers:
+      - name: pdf-extractor
+        image: ${DOCKER_REGISTRY}/pdf-extractor:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: LOG_LEVEL
+          value: "INFO"
+        volumeMounts:
+        - name: pdf-storage
+          mountPath: /data
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: pdf-storage
+        persistentVolumeClaim:
+          claimName: pdf-storage-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pdf-extractor
+spec:
+  selector:
+    app: pdf-extractor
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pdf-storage-claim
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pdf-extractor
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: pdf-extractor
+  endpoints:
+  - port: http
+    interval: 15s 
