@@ -369,16 +369,16 @@ export class TableExtractor {
       let current = { ...region };
       processed.add(region);
       
-      let merged = false;
+      let hasMerged = false;
       do {
-        merged = false;
+        hasMerged = false;
         for (const other of regions) {
           if (processed.has(other)) continue;
           
           if (this.regionsOverlap(current, other)) {
             current = this.mergeRegions(current, other);
             processed.add(other);
-            merged = true;
+            hasMerged = true;
           }
         }
       } while (merged);
