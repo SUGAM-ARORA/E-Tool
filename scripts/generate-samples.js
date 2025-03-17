@@ -16,6 +16,8 @@ async function generateSamples() {
 
   // Generate sample1.xlsx
   await generateSample1();
+  // Generate sample2.xlsx
+  await generateSample2();
 }
 
 async function generateSample1() {
@@ -136,6 +138,99 @@ async function generateSample1() {
   const outputPath = path.join(__dirname, '..', 'samples', 'excel', 'sample1.xlsx');
   await workbook.xlsx.writeFile(outputPath);
   console.log('Generated sample1.xlsx');
+}
+
+async function generateSample2() {
+  const workbook = new ExcelJS.Workbook();
+
+  // Financial Report Table
+  const sheet1 = workbook.addWorksheet('Financial Report');
+  
+  // Set column widths
+  sheet1.columns = [
+    { width: 20 }, // Category
+    { width: 15 }, // Q3 Revenue
+    { width: 15 }, // Q4 Revenue
+    { width: 12 }, // Growth
+  ];
+
+  // Add header row
+  const headerRow = sheet1.addRow(['Category', 'Q3 Revenue', 'Q4 Revenue', 'Growth']);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' },
+  };
+
+  // Add data rows
+  const data1 = [
+    ['Software', '$1.2M', '$1.5M', '+25%'],
+    ['Hardware', '$800K', '$950K', '+19%'],
+    ['Services', '$500K', '$680K', '+36%'],
+    ['Support', '$300K', '$420K', '+40%'],
+  ];
+
+  data1.forEach(row => {
+    const excelRow = sheet1.addRow(row);
+    // Add subtle alternating row colors
+    if (sheet1.rowCount % 2 === 0) {
+      excelRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF5F5F5' },
+      };
+    }
+  });
+
+  // Project Timeline Table
+  const sheet2 = workbook.addWorksheet('Project Timeline');
+  
+  // Set column widths
+  sheet2.columns = [
+    { width: 20 }, // Project Phase
+    { width: 12 }, // Q1
+    { width: 12 }, // Q2
+    { width: 12 }, // Q3
+    { width: 12 }, // Q4
+  ];
+
+  // Add header row
+  const header2Row = sheet2.addRow(['Project Phase', 'Q1', 'Q2', 'Q3', 'Q4']);
+  header2Row.font = { bold: true };
+  header2Row.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' },
+  };
+
+  // Add data rows with merged cells
+  const data2 = [
+    ['Planning', 'Phase 1', '', '', ''],
+    ['Development', '', 'Phase 2', 'Phase 2', ''],
+    ['Testing', '', '', 'Phase 3', 'Phase 3'],
+    ['Deployment', '', '', '', 'Final'],
+  ];
+
+  data2.forEach(row => {
+    sheet2.addRow(row);
+  });
+
+  // Merge cells
+  sheet2.mergeCells('B2:B2'); // Phase 1
+  sheet2.mergeCells('C3:D3'); // Phase 2
+  sheet2.mergeCells('D4:E4'); // Phase 3
+
+  // Add cell colors for phases
+  sheet2.getCell('B2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB3E0FF' } }; // Phase 1
+  sheet2.getCell('C3').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFB3B3' } }; // Phase 2
+  sheet2.getCell('D4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB3FFB3' } }; // Phase 3
+  sheet2.getCell('E5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD700' } }; // Final
+
+  // Save the workbook
+  const outputPath = path.join(__dirname, '..', 'samples', 'excel', 'sample2.xlsx');
+  await workbook.xlsx.writeFile(outputPath);
+  console.log('Generated sample2.xlsx');
 }
 
 generateSamples().catch(console.error); 
