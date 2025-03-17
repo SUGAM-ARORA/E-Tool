@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography, Paper, Alert, LinearProgress, Fade, Zoom } from '@mui/material';
-import { Table, Grid, Card, CardContent, IconButton, Tooltip, Modal, Button } from '@mui/material';
-import { TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
-import { CheckCircle, Error, AccessTime, Download, Refresh, FileDownload, Preview, Close } from '@mui/icons-material';
+import { Box, CircularProgress, Typography, Paper, Alert, LinearProgress, Fade, Zoom, Table, Grid, Card, CardContent, IconButton, Tooltip, Modal, Button, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { CheckCircle, Error, AccessTime, Download, Refresh, FileDownload, Preview, Close, FilterList, Sort, ViewColumn, MoreVert, Share } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 
 // Styled Components
@@ -39,41 +37,62 @@ const PreviewModal = styled(Modal)(({ theme }) => ({
   alignItems: 'center',
   justifyContent: 'center',
   '& .MuiPaper-root': {
-    width: '90%',
-    maxWidth: 1200,
-    maxHeight: '90vh',
-    overflow: 'auto',
+    width: '95%',
+    maxWidth: 1400,
+    maxHeight: '95vh',
+    overflow: 'hidden',
     borderRadius: theme.shape.borderRadius * 2,
-    padding: theme.spacing(3),
     background: theme.palette.background.paper,
     boxShadow: theme.shadows[24],
+    display: 'flex',
+    flexDirection: 'column',
   },
 }));
 
-const ExcelPreviewContainer = styled(Box)(({ theme }) => ({
-  width: '100%',
-  height: '70vh',
-  overflow: 'auto',
+const PreviewHeader = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2, 3),
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
   background: theme.palette.background.default,
-  borderRadius: theme.shape.borderRadius,
-  border: `1px solid ${theme.palette.divider}`,
+}));
+
+const PreviewToolbar = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(1, 2),
+  display: 'flex',
+  gap: theme.spacing(2),
+  alignItems: 'center',
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  flexWrap: 'wrap',
+}));
+
+const ExcelPreviewContainer = styled(Box)(({ theme }) => ({
+  flex: 1,
+  overflow: 'auto',
+  padding: theme.spacing(2),
   '& table': {
     borderCollapse: 'collapse',
     width: '100%',
     '& th, & td': {
       border: `1px solid ${theme.palette.divider}`,
-      padding: theme.spacing(1),
+      padding: theme.spacing(1.5),
       textAlign: 'left',
+      fontSize: '0.875rem',
     },
     '& th': {
       background: theme.palette.primary.light,
       color: theme.palette.primary.contrastText,
+      fontWeight: 600,
       position: 'sticky',
       top: 0,
       zIndex: 1,
     },
     '& tr:nth-of-type(even)': {
       background: theme.palette.action.hover,
+    },
+    '& tr:hover': {
+      background: theme.palette.action.selected,
     },
   },
 }));
@@ -102,6 +121,15 @@ const DownloadButton = styled(IconButton)(({ theme }) => ({
   transition: 'all 0.2s ease-in-out',
 }));
 
+const ActionIconButton = styled(IconButton)(({ theme }) => ({
+  color: theme.palette.primary.main,
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    transform: 'scale(1.1)',
+    color: theme.palette.primary.dark,
+  },
+}));
+
 interface ResultsDisplayProps {
   isProcessing: boolean;
   progress: number;
@@ -113,7 +141,7 @@ interface ResultsDisplayProps {
     outputPath?: string;
     processingTime?: number;
     fileSize?: number;
-    excelData?: any[][];  // Add this for Excel preview data
+    excelData?: any[][];
   }>;
   onRetry?: (fileName: string) => void;
 }
@@ -136,20 +164,50 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState<any>(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [sortConfig, setSortConfig] = useState({ field: '', direction: 'asc' });
+  const [filterValue, setFilterValue] = useState('');
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
 
   const handlePreview = async (result: any) => {
     setSelectedResult(result);
     setPreviewOpen(true);
-    // Here you would typically fetch the Excel data if it's not already loaded
     if (!result.excelData) {
       try {
         const response = await fetch(result.outputPath);
         const data = await response.json();
         result.excelData = data;
+        if (data[0]) {
+          setSelectedColumns(Object.keys(data[0]));
+        }
       } catch (error) {
         console.error('Failed to load Excel preview:', error);
       }
     }
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSort = (field: string) => {
+    setSortConfig({
+      field,
+      direction: sortConfig.field === field && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+    });
+    handleMenuClose();
+  };
+
+  const handleColumnToggle = (column: string) => {
+    setSelectedColumns(prev =>
+      prev.includes(column)
+        ? prev.filter(col => col !== column)
+        : [...prev, column]
+    );
   };
 
   const successCount = results.filter(r => r.status === 'success').length;
@@ -230,15 +288,43 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
 
   const renderPreviewModal = () => (
     <PreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)}>
-      <Paper>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <PreviewHeader>
           <Typography variant="h6">
             Excel Preview: {selectedResult?.fileName}
           </Typography>
-          <IconButton onClick={() => setPreviewOpen(false)}>
-            <Close />
-          </IconButton>
-        </Box>
+          <Box display="flex" gap={1}>
+            <ActionIconButton size="small" onClick={handleMenuOpen}>
+              <MoreVert />
+            </ActionIconButton>
+            <ActionIconButton size="small" onClick={() => setPreviewOpen(false)}>
+              <Close />
+            </ActionIconButton>
+          </Box>
+        </PreviewHeader>
+
+        <PreviewToolbar>
+          <Tooltip title="Filter">
+            <ActionIconButton size="small">
+              <FilterList />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip title="Sort">
+            <ActionIconButton size="small">
+              <Sort />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip title="Column Visibility">
+            <ActionIconButton size="small">
+              <ViewColumn />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip title="Share">
+            <ActionIconButton size="small">
+              <Share />
+            </ActionIconButton>
+          </Tooltip>
+        </PreviewToolbar>
         
         {selectedResult?.excelData ? (
           <ExcelPreviewContainer>
@@ -246,18 +332,45 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
               <TableHead>
                 <TableRow>
                   {selectedResult.excelData[0]?.map((header: string, index: number) => (
-                    <TableCell key={index}>{header}</TableCell>
+                    selectedColumns.includes(header) && (
+                      <TableCell 
+                        key={index}
+                        onClick={() => handleSort(header)}
+                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <Box display="flex" alignItems="center" gap={1}>
+                          {header}
+                          {sortConfig.field === header && (
+                            <Sort sx={{ 
+                              fontSize: 16,
+                              transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none'
+                            }} />
+                          )}
+                        </Box>
+                      </TableCell>
+                    )
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {selectedResult.excelData.slice(1).map((row: any[], rowIndex: number) => (
-                  <TableRow key={rowIndex}>
-                    {row.map((cell: any, cellIndex: number) => (
-                      <TableCell key={cellIndex}>{cell}</TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                {selectedResult.excelData.slice(1)
+                  .sort((a: any[], b: any[]) => {
+                    if (!sortConfig.field) return 0;
+                    const index = selectedResult.excelData[0].indexOf(sortConfig.field);
+                    return sortConfig.direction === 'asc'
+                      ? a[index] > b[index] ? 1 : -1
+                      : a[index] < b[index] ? 1 : -1;
+                  })
+                  .map((row: any[], rowIndex: number) => (
+                    <TableRow key={rowIndex}>
+                      {row.map((cell: any, cellIndex: number) => (
+                        selectedColumns.includes(selectedResult.excelData[0][cellIndex]) && (
+                          <TableCell key={cellIndex}>{cell}</TableCell>
+                        )
+                      ))}
+                    </TableRow>
+                  ))
+                }
               </TableBody>
             </Table>
           </ExcelPreviewContainer>
@@ -267,6 +380,33 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
           </Box>
         )}
       </Paper>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={handleMenuClose}>
+          <ListItemIcon>
+            <Download fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Download</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleMenuClose}>
+          <ListItemIcon>
+            <Share fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Share</ListItemText>
+        </MenuItem>
+      </Menu>
     </PreviewModal>
   );
 
