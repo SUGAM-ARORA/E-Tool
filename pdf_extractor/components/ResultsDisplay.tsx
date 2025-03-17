@@ -1,132 +1,46 @@
 import React, { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography, Paper, Alert, LinearProgress, Fade, Zoom, Table, Grid, Card, CardContent, IconButton, Tooltip, Modal, Button, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
-import { CheckCircle, Error, AccessTime, Download, Refresh, FileDownload, Preview, Close, FilterList, Sort, ViewColumn, MoreVert, Share } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
+import { Box, CircularProgress, Typography, Paper, Alert, LinearProgress, Fade, Zoom, Table, Grid, Card, CardContent, IconButton, Tooltip, Modal, Button, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, Menu, MenuItem, ListItemIcon, ListItemText, TextField, Chip, Badge, SpeedDial, SpeedDialAction, SpeedDialIcon, Drawer, useMediaQuery, useTheme, Pagination, InputAdornment, Divider, Collapse, Slider, ToggleButton, ToggleButtonGroup, Popover, Stack, Avatar } from '@mui/material';
+import { CheckCircle, Error, AccessTime, Download, Refresh, FileDownload, Preview, Close, FilterList, Sort, ViewColumn, MoreVert, Share, SaveAlt, Print, ContentCopy, Search, FilterAlt, AutoGraph, PictureAsPdf, InsertChart, FormatColorFill, Calculate, TableChart, Visibility, VisibilityOff, TrendingUp, CompareArrows, DataUsage, Summarize, PieChart, BarChart, Timeline, BubbleChart } from '@mui/icons-material';
+import { styled, keyframes } from '@mui/material/styles';
 
-// Styled Components
-const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
-  border: `1px solid ${theme.palette.divider}`,
+const pulseAnimation = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+`;
+
+const ResultCard = styled(Card)(({ theme }) => ({
+  position: 'relative',
+  transition: 'all 0.3s ease',
   '&:hover': {
-    transform: 'translateY(-8px) scale(1.02)',
-    boxShadow: `0 20px 25px -5px ${theme.palette.action.hover}, 0 10px 10px -5px ${theme.palette.action.selected}`,
+    transform: 'translateY(-4px)',
+    boxShadow: theme.shadows[8],
   },
 }));
 
-const AnimatedProgress = styled(LinearProgress)(({ theme }) => ({
-  height: 12,
-  borderRadius: 6,
-  background: `linear-gradient(45deg, ${theme.palette.grey[200]}, ${theme.palette.grey[300]})`,
-  [`& .MuiLinearProgress-bar`]: {
-    borderRadius: 6,
-    background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-    backgroundSize: '200% 200%',
-    animation: 'gradient 2s ease infinite',
-  },
-  '@keyframes gradient': {
-    '0%': { backgroundPosition: '0% 50%' },
-    '50%': { backgroundPosition: '100% 50%' },
-    '100%': { backgroundPosition: '0% 50%' },
-  },
-}));
-
-const PreviewModal = styled(Modal)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  '& .MuiPaper-root': {
-    width: '95%',
-    maxWidth: 1400,
-    maxHeight: '95vh',
-    overflow: 'hidden',
-    borderRadius: theme.shape.borderRadius * 2,
-    background: theme.palette.background.paper,
-    boxShadow: theme.shadows[24],
-    display: 'flex',
-    flexDirection: 'column',
-  },
-}));
-
-const PreviewHeader = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  background: theme.palette.background.default,
-}));
-
-const PreviewToolbar = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(1, 2),
-  display: 'flex',
-  gap: theme.spacing(2),
-  alignItems: 'center',
-  borderBottom: `1px solid ${theme.palette.divider}`,
-  flexWrap: 'wrap',
-}));
-
-const ExcelPreviewContainer = styled(Box)(({ theme }) => ({
-  flex: 1,
-  overflow: 'auto',
-  padding: theme.spacing(2),
-  '& table': {
-    borderCollapse: 'collapse',
-    width: '100%',
-    '& th, & td': {
-      border: `1px solid ${theme.palette.divider}`,
-      padding: theme.spacing(1.5),
-      textAlign: 'left',
-      fontSize: '0.875rem',
-    },
-    '& th': {
-      background: theme.palette.primary.light,
-      color: theme.palette.primary.contrastText,
-      fontWeight: 600,
-      position: 'sticky',
-      top: 0,
-      zIndex: 1,
-    },
-    '& tr:nth-of-type(even)': {
-      background: theme.palette.action.hover,
-    },
-    '& tr:hover': {
-      background: theme.palette.action.selected,
-    },
-  },
-}));
-
-const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
-  marginTop: theme.spacing(4),
+const DataVisContainer = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(3),
   borderRadius: theme.shape.borderRadius,
-  boxShadow: theme.shadows[2],
-  '& .MuiTable-root': {
-    minWidth: 750,
+  backgroundColor: theme.palette.background.paper,
+  boxShadow: theme.shadows[4],
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    boxShadow: theme.shadows[8],
   },
-  '& .MuiTableCell-root': {
-    padding: theme.spacing(2),
-  },
-  '& .MuiTableRow-root:hover': {
+}));
+
+const ChartContainer = styled(Box)(({ theme }) => ({
+  height: 300,
+  padding: theme.spacing(2),
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: theme.palette.background.default,
+}));
+
+const AnimatedTableRow = styled(TableRow)(({ theme }) => ({
+  transition: 'all 0.3s ease',
+  '&:hover': {
     backgroundColor: theme.palette.action.hover,
-  },
-}));
-
-const DownloadButton = styled(IconButton)(({ theme }) => ({
-  background: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-  '&:hover': {
-    background: theme.palette.primary.dark,
-  },
-  transition: 'all 0.2s ease-in-out',
-}));
-
-const ActionIconButton = styled(IconButton)(({ theme }) => ({
-  color: theme.palette.primary.main,
-  transition: 'all 0.2s ease',
-  '&:hover': {
-    transform: 'scale(1.1)',
-    color: theme.palette.primary.dark,
+    transform: 'scale(1.01)',
   },
 }));
 
@@ -135,15 +49,12 @@ interface ResultsDisplayProps {
   progress: number;
   results: Array<{
     fileName: string;
-    status: 'success' | 'error';
-    message: string;
-    tablesExtracted?: number;
+    status: string;
+    message?: string;
     outputPath?: string;
-    processingTime?: number;
-    fileSize?: number;
-    excelData?: any[][];
+    data?: any;
   }>;
-  onRetry?: (fileName: string) => void;
+  onRetry: (fileName: string) => void;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -168,15 +79,26 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
   const [sortConfig, setSortConfig] = useState({ field: '', direction: 'asc' });
   const [filterValue, setFilterValue] = useState('');
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDataVis, setShowDataVis] = useState(false);
+  const [chartType, setChartType] = useState<string>('bar');
+  const [dataAnalysis, setDataAnalysis] = useState<any>(null);
+  const [highlightedColumns, setHighlightedColumns] = useState<string[]>([]);
+  const [columnStats, setColumnStats] = useState<any>({});
+  const [viewMode, setViewMode] = useState<'table' | 'cards' | 'grid'>('table');
+  const [showTrends, setShowTrends] = useState(false);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handlePreview = async (result: any) => {
     setSelectedResult(result);
     setPreviewOpen(true);
-    if (!result.excelData) {
+    if (!result.data) {
       try {
         const response = await fetch(result.outputPath);
         const data = await response.json();
-        result.excelData = data;
+        result.data = data;
         if (data[0]) {
           setSelectedColumns(Object.keys(data[0]));
         }
@@ -212,8 +134,41 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
 
   const successCount = results.filter(r => r.status === 'success').length;
   const errorCount = results.filter(r => r.status === 'error').length;
-  const totalTables = results.reduce((sum, r) => sum + (r.tablesExtracted || 0), 0);
-  const avgProcessingTime = results.reduce((sum, r) => sum + (r.processingTime || 0), 0) / (results.length || 1);
+  const totalTables = results.reduce((sum, r) => sum + (r.data?.tables?.length || 0), 0);
+  const avgProcessingTime = results.reduce((sum, r) => sum + (r.data?.processingTime || 0), 0) / (results.length || 1);
+
+  const analyzeData = () => {
+    const analysis = {
+      totalFiles: results.length,
+      successRate: (results.filter(r => r.status === 'success').length / results.length) * 100,
+      averageSize: results.reduce((acc, r) => acc + (r.data?.size || 0), 0) / results.length,
+      columnTypes: {},
+      trends: {},
+    };
+
+    results.forEach(result => {
+      if (result.data?.columns) {
+        result.data.columns.forEach((col: string) => {
+          if (!analysis.columnTypes[col]) {
+            analysis.columnTypes[col] = {
+              numeric: 0,
+              categorical: 0,
+              total: 0,
+            };
+          }
+          // Analyze column types and calculate statistics
+          analysis.columnTypes[col].total++;
+          if (typeof result.data[col]?.[0] === 'number') {
+            analysis.columnTypes[col].numeric++;
+          } else {
+            analysis.columnTypes[col].categorical++;
+          }
+        });
+      }
+    });
+
+    setDataAnalysis(analysis);
+  };
 
   const renderStats = () => (
     <Fade in timeout={1000}>
@@ -286,64 +241,216 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
     </Fade>
   );
 
+  const renderDataVisualization = () => (
+    <DataVisContainer>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h6">Data Analysis</Typography>
+        <ToggleButtonGroup
+          value={chartType}
+          exclusive
+          onChange={(e, value) => value && setChartType(value)}
+          size="small"
+        >
+          <ToggleButton value="bar">
+            <BarChart />
+          </ToggleButton>
+          <ToggleButton value="pie">
+            <PieChart />
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <ChartContainer>
+            {/* Chart visualization would go here */}
+            <Typography variant="body2" color="text.secondary" align="center">
+              Column Distribution
+            </Typography>
+          </ChartContainer>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Column Analysis
+            </Typography>
+            {Object.entries(dataAnalysis?.columnTypes || {}).map(([col, stats]: [string, any]) => (
+              <Box key={col} mb={2}>
+                <Typography variant="body2" fontWeight={500}>
+                  {col}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Chip 
+                    size="small" 
+                    label={`${stats.numeric} numeric`} 
+                    color="primary" 
+                    variant="outlined"
+                  />
+                  <Chip 
+                    size="small" 
+                    label={`${stats.categorical} categorical`} 
+                    color="secondary" 
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Grid>
+      </Grid>
+    </DataVisContainer>
+  );
+
+  const renderPreviewToolbar = () => (
+    <Box 
+      display="flex" 
+      justifyContent="space-between" 
+      alignItems="center" 
+      mb={3}
+      sx={{
+        position: 'sticky',
+        top: 0,
+        backgroundColor: theme.palette.background.paper,
+        zIndex: 1,
+        py: 2,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+      }}
+    >
+      <Box display="flex" alignItems="center" gap={2}>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(e, value) => value && setViewMode(value)}
+          size="small"
+        >
+          <ToggleButton value="table">
+            <TableChart />
+          </ToggleButton>
+          <ToggleButton value="cards">
+            <ViewColumn />
+          </ToggleButton>
+          <ToggleButton value="grid">
+            <GridOnIcon />
+          </ToggleButton>
+        </ToggleButtonGroup>
+        <Button
+          startIcon={<FilterList />}
+          variant="outlined"
+          size="small"
+        >
+          Filter
+        </Button>
+        <Button
+          startIcon={<Sort />}
+          variant="outlined"
+          size="small"
+        >
+          Sort
+        </Button>
+      </Box>
+      <Box display="flex" alignItems="center" gap={2}>
+        <Button
+          startIcon={<BarChart />}
+          variant="contained"
+          size="small"
+          onClick={() => setShowDataVis(!showDataVis)}
+        >
+          Analysis
+        </Button>
+        <IconButton size="small">
+          <MoreVert />
+        </IconButton>
+      </Box>
+    </Box>
+  );
+
   const renderPreviewModal = () => (
     <PreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)}>
       <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <PreviewHeader>
-          <Typography variant="h6">
-            Excel Preview: {selectedResult?.fileName}
-          </Typography>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Typography variant="h6">
+              Excel Preview: {selectedResult?.fileName}
+            </Typography>
+            <Chip
+              size="small"
+              label={`${selectedResult?.data?.length - 1 || 0} rows`}
+              color="primary"
+              variant="outlined"
+            />
+          </Box>
           <Box display="flex" gap={1}>
-            <ActionIconButton size="small" onClick={handleMenuOpen}>
-              <MoreVert />
-            </ActionIconButton>
+            <SpeedDial
+              ariaLabel="Excel actions"
+              icon={<SpeedDialIcon />}
+              direction="left"
+              sx={{
+                '& .MuiSpeedDial-fab': {
+                  width: 40,
+                  height: 40,
+                  '& .MuiSvgIcon-root': {
+                    fontSize: 20,
+                  },
+                },
+              }}
+            >
+              <SpeedDialAction
+                icon={<PictureAsPdf />}
+                tooltipTitle="Export as PDF"
+                onClick={() => {}}
+              />
+              <SpeedDialAction
+                icon={<InsertChart />}
+                tooltipTitle="View Charts"
+                onClick={() => {
+                  setShowDataVis(true);
+                  analyzeData();
+                }}
+              />
+              <SpeedDialAction
+                icon={<Share />}
+                tooltipTitle="Share"
+                onClick={() => {}}
+              />
+            </SpeedDial>
             <ActionIconButton size="small" onClick={() => setPreviewOpen(false)}>
               <Close />
             </ActionIconButton>
           </Box>
         </PreviewHeader>
 
-        <PreviewToolbar>
-          <Tooltip title="Filter">
-            <ActionIconButton size="small">
-              <FilterList />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip title="Sort">
-            <ActionIconButton size="small">
-              <Sort />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip title="Column Visibility">
-            <ActionIconButton size="small">
-              <ViewColumn />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip title="Share">
-            <ActionIconButton size="small">
-              <Share />
-            </ActionIconButton>
-          </Tooltip>
-        </PreviewToolbar>
+        {renderPreviewToolbar()}
+        {renderDataVisualization()}
         
-        {selectedResult?.excelData ? (
-          <ExcelPreviewContainer>
+        <ExcelPreviewContainer>
+          {viewMode === 'table' && (
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  {selectedResult.excelData[0]?.map((header: string, index: number) => (
+                  {selectedResult?.data[0]?.map((header: string, index: number) => (
                     selectedColumns.includes(header) && (
                       <TableCell 
                         key={index}
                         onClick={() => handleSort(header)}
-                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                        sx={{ 
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          position: 'sticky',
+                          top: 0,
+                          backgroundColor: theme.palette.primary.main,
+                          color: theme.palette.primary.contrastText,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: theme.palette.primary.dark,
+                          },
+                        }}
                       >
                         <Box display="flex" alignItems="center" gap={1}>
                           {header}
                           {sortConfig.field === header && (
                             <Sort sx={{ 
                               fontSize: 16,
-                              transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none'
+                              transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.2s ease',
                             }} />
                           )}
                         </Box>
@@ -353,60 +460,146 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
                 </TableRow>
               </TableHead>
               <TableBody>
-                {selectedResult.excelData.slice(1)
-                  .sort((a: any[], b: any[]) => {
-                    if (!sortConfig.field) return 0;
-                    const index = selectedResult.excelData[0].indexOf(sortConfig.field);
-                    return sortConfig.direction === 'asc'
-                      ? a[index] > b[index] ? 1 : -1
-                      : a[index] < b[index] ? 1 : -1;
-                  })
+                {selectedResult?.data.slice(1)
+                  .filter(row => 
+                    row.some(cell => 
+                      String(cell).toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                  )
                   .map((row: any[], rowIndex: number) => (
-                    <TableRow key={rowIndex}>
+                    <AnimatedTableRow 
+                      key={rowIndex}
+                      sx={{
+                        animation: `fadeIn ${0.2 + rowIndex * 0.05}s ease-out`,
+                      }}
+                    >
                       {row.map((cell: any, cellIndex: number) => (
-                        selectedColumns.includes(selectedResult.excelData[0][cellIndex]) && (
-                          <TableCell key={cellIndex}>{cell}</TableCell>
+                        selectedColumns.includes(selectedResult.data[0][cellIndex]) && (
+                          <TableCell 
+                            key={cellIndex}
+                            sx={{
+                              position: 'relative',
+                              '&:hover': {
+                                backgroundColor: theme.palette.action.hover,
+                              },
+                            }}
+                          >
+                            {cell}
+                            {showTrends && !isNaN(parseFloat(cell)) && (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  right: 8,
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                }}
+                              >
+                                <TrendingUp 
+                                  sx={{ 
+                                    fontSize: 16,
+                                    color: parseFloat(cell) > 0 ? 'success.main' : 'error.main',
+                                  }} 
+                                />
+                              </Box>
+                            )}
+                          </TableCell>
                         )
                       ))}
-                    </TableRow>
+                    </AnimatedTableRow>
                   ))
                 }
               </TableBody>
             </Table>
-          </ExcelPreviewContainer>
-        ) : (
-          <Box display="flex" justifyContent="center" alignItems="center" height="200px">
-            <CircularProgress />
-          </Box>
-        )}
-      </Paper>
+          )}
 
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <Download fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Download</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <Share fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Share</ListItemText>
-        </MenuItem>
-      </Menu>
+          {viewMode === 'cards' && (
+            <Grid container spacing={2}>
+              {selectedResult?.data.slice(1)
+                .filter(row => 
+                  row.some(cell => 
+                    String(cell).toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                )
+                .map((row: any[], rowIndex: number) => (
+                  <Grid item xs={12} sm={6} md={4} key={rowIndex}>
+                    <Card 
+                      sx={{ 
+                        height: '100%',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-5px)',
+                          boxShadow: theme.shadows[8],
+                        },
+                      }}
+                    >
+                      <CardContent>
+                        {row.map((cell: any, cellIndex: number) => (
+                          selectedColumns.includes(selectedResult.data[0][cellIndex]) && (
+                            <Box key={cellIndex} mb={1}>
+                              <Typography variant="caption" color="text.secondary">
+                                {selectedResult.data[0][cellIndex]}
+                              </Typography>
+                              <Typography variant="body1">{cell}</Typography>
+                            </Box>
+                          )
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))
+              }
+            </Grid>
+          )}
+
+          {viewMode === 'grid' && (
+            <Grid container spacing={1}>
+              {selectedResult?.data.slice(1)
+                .filter(row => 
+                  row.some(cell => 
+                    String(cell).toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                )
+                .map((row: any[], rowIndex: number) => (
+                  <Grid item xs={6} sm={4} md={3} lg={2} key={rowIndex}>
+                    <Paper
+                      sx={{
+                        p: 1,
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                          zIndex: 1,
+                        },
+                      }}
+                    >
+                      {row.slice(0, 3).map((cell: any, cellIndex: number) => (
+                        selectedColumns.includes(selectedResult.data[0][cellIndex]) && (
+                          <Typography
+                            key={cellIndex}
+                            variant={cellIndex === 0 ? 'subtitle2' : 'body2'}
+                            noWrap
+                          >
+                            {cell}
+                          </Typography>
+                        )
+                      ))}
+                      {row.length > 3 && (
+                        <Chip
+                          size="small"
+                          label={`+${row.length - 3} more`}
+                          sx={{ mt: 1, alignSelf: 'flex-start' }}
+                        />
+                      )}
+                    </Paper>
+                  </Grid>
+                ))
+              }
+            </Grid>
+          )}
+        </ExcelPreviewContainer>
+      </Paper>
     </PreviewModal>
   );
 
@@ -504,12 +697,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {formatTime(result.processingTime || 0)}
+                      {formatTime(result.data?.processingTime || 0)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {formatFileSize(result.fileSize || 0)}
+                      {formatFileSize(result.data?.size || 0)}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
@@ -549,7 +742,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ isProcessing, progress,
                         <Tooltip title="Retry Processing">
                           <IconButton
                             size="small"
-                            onClick={() => onRetry?.(result.fileName)}
+                            onClick={() => onRetry(result.fileName)}
                             sx={{
                               color: 'warning.main',
                               '&:hover': {

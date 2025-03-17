@@ -3,7 +3,8 @@ import {
   Box, Container, Typography, Button, Snackbar, Alert, useTheme, useMediaQuery, Paper, 
   Switch, FormControlLabel, Chip, IconButton, Tooltip, CircularProgress, Drawer,
   List, ListItem, ListItemText, ListItemIcon, Slider, Select, MenuItem, FormControl,
-  InputLabel, Collapse
+  InputLabel, Collapse, Stepper, Step, StepLabel, StepContent, Backdrop, Zoom,
+  SpeedDial, SpeedDialAction, SpeedDialIcon, Divider, Stack, Badge
 } from '@mui/material';
 import { styled, keyframes } from '@mui/material/styles';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -22,7 +23,8 @@ import {
   CloudUploadIcon as OldCloudUploadIcon, DeleteIcon as OldDeleteIcon, InfoIcon as OldInfoIcon, SpeedIcon as OldSpeedIcon,
   DarkModeIcon as OldDarkModeIcon, LightModeIcon as OldLightModeIcon, SettingsIcon as OldSettingsIcon,
   BatchPredictionIcon as OldBatchPredictionIcon, TableChartIcon, TuneIcon, FormatAlignLeftIcon,
-  GridOnIcon, AutoFixHighIcon, ExpandMore, ExpandLess
+  GridOnIcon, AutoFixHighIcon, ExpandMore, ExpandLess, Folder, FolderOpen,
+  Description, CheckCircle, Error, Refresh, Save, Share, Download, Print
 } from '@mui/icons-material';
 
 const pulse = keyframes`
@@ -237,6 +239,38 @@ const ProcessingOptionItem = styled(ListItem)(({ theme }) => ({
   },
 }));
 
+const AnimatedContainer = styled(Container)(({ theme }) => ({
+  '@keyframes fadeSlideUp': {
+    from: {
+      opacity: 0,
+      transform: 'translateY(20px)',
+    },
+    to: {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+  },
+  animation: 'fadeSlideUp 0.5s ease-out',
+}));
+
+const ProcessingStep = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  padding: theme.spacing(2),
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: theme.palette.background.paper,
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-5px)',
+    boxShadow: theme.shadows[4],
+  },
+}));
+
+const FloatingActionButton = styled(SpeedDial)(({ theme }) => ({
+  position: 'fixed',
+  bottom: theme.spacing(4),
+  right: theme.spacing(4),
+}));
+
 export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -268,6 +302,14 @@ export default function Home() {
     ocrEnabled: true,
   });
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
+  const [activeStep, setActiveStep] = useState(0);
+  const [processingSteps, setProcessingSteps] = useState([
+    { label: 'Upload Files', completed: false },
+    { label: 'Configure Settings', completed: false },
+    { label: 'Process Files', completed: false },
+    { label: 'View Results', completed: false },
+  ]);
+  const [showBackdrop, setShowBackdrop] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -298,6 +340,17 @@ export default function Home() {
       });
     }
   }, [results]);
+
+  useEffect(() => {
+    // Update processing steps based on state
+    setProcessingSteps(prev => prev.map((step, index) => ({
+      ...step,
+      completed: index === 0 ? selectedFiles.length > 0 :
+                index === 1 ? settingsOpen :
+                index === 2 ? results.length > 0 :
+                index === 3 ? results.some(r => r.status === 'success') : false
+    })));
+  }, [selectedFiles, settingsOpen, results]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -449,6 +502,152 @@ export default function Home() {
       setProgress(100);
     }
   };
+
+  const handleStepClick = (index: number) => {
+    setActiveStep(index);
+    if (index === 1) setSettingsOpen(true);
+  };
+
+  const speedDialActions = [
+    { icon: <Save />, name: 'Save Session', action: () => {} },
+    { icon: <Share />, name: 'Share Results', action: () => {} },
+    { icon: <Print />, name: 'Print Report', action: () => {} },
+    { icon: <Download />, name: 'Download All', action: () => {} },
+  ];
+
+  const renderProcessingStepper = () => (
+    <Stepper 
+      activeStep={activeStep} 
+      orientation="vertical"
+      sx={{ 
+        maxWidth: 400,
+        mx: 'auto',
+        mb: 4,
+        '& .MuiStepConnector-line': {
+          minHeight: 40,
+        },
+      }}
+    >
+      {processingSteps.map((step, index) => (
+        <Step key={index}>
+          <StepLabel
+            optional={
+              <Typography variant="caption" color="text.secondary">
+                {step.completed ? 'Completed' : 'Pending'}
+              </Typography>
+            }
+            onClick={() => handleStepClick(index)}
+            sx={{ cursor: 'pointer' }}
+          >
+            <Typography variant="subtitle1" fontWeight={500}>
+              {step.label}
+            </Typography>
+          </StepLabel>
+          <StepContent>
+            <ProcessingStep>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                {index === 0 ? 'Drop your PDF files or click to select them' :
+                 index === 1 ? 'Configure extraction settings and options' :
+                 index === 2 ? 'Process files and extract tables' :
+                 'View and analyze extracted data'}
+              </Typography>
+              {index === activeStep && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  onClick={() => setActiveStep(prev => Math.min(prev + 1, processingSteps.length - 1))}
+                  disabled={!step.completed}
+                >
+                  Continue
+                </Button>
+              )}
+            </ProcessingStep>
+          </StepContent>
+        </Step>
+      ))}
+    </Stepper>
+  );
+
+  const renderSelectedFiles = () => (
+    <Box mt={6}>
+      <Typography 
+        variant="h6" 
+        gutterBottom 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          mb: 3,
+          '&:after': {
+            content: '""',
+            flex: 1,
+            height: '1px',
+            background: theme.palette.divider,
+            marginLeft: theme.spacing(2),
+          },
+        }}
+      >
+        Selected Files ({selectedFiles.length})
+      </Typography>
+      <Stack spacing={2}>
+        {selectedFiles.map((file, index) => (
+          <Zoom in key={index} style={{ transitionDelay: `${index * 100}ms` }}>
+            <SelectedFileBox elevation={2}>
+              <Box display="flex" alignItems="center" gap={2}>
+                <Description sx={{ color: 'primary.main', fontSize: 40 }} />
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {file.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Size: {(file.size / 1024).toFixed(1)} KB
+                  </Typography>
+                </Box>
+              </Box>
+              <Box display="flex" gap={1}>
+                <Tooltip title="Preview">
+                  <IconButton size="small" color="primary">
+                    <Preview />
+                  </IconButton>
+                </Tooltip>
+                <ActionButton
+                  startIcon={<DeleteIcon />}
+                  onClick={() => handleRemoveFile(index)}
+                  color="error"
+                  disabled={isProcessing}
+                  variant="contained"
+                  size="small"
+                >
+                  Remove
+                </ActionButton>
+              </Box>
+            </SelectedFileBox>
+          </Zoom>
+        ))}
+      </Stack>
+      <Box mt={4} display="flex" justifyContent="center">
+        <ActionButton
+          variant="contained"
+          onClick={handleExtractTables}
+          disabled={isProcessing}
+          size="large"
+          sx={{ 
+            minWidth: isMobile ? '100%' : 250,
+            py: 2,
+          }}
+        >
+          {isProcessing ? (
+            <Box display="flex" alignItems="center" gap={2}>
+              <CircularProgress size={24} color="inherit" />
+              Processing...
+            </Box>
+          ) : (
+            <>Extract Tables</>
+          )}
+        </ActionButton>
+      </Box>
+    </Box>
+  );
 
   const renderStats = () => (
     <StatsContainer>
@@ -623,7 +822,7 @@ export default function Home() {
   );
 
   return (
-    <Container maxWidth="lg">
+    <AnimatedContainer maxWidth="lg">
       <Box py={8}>
         <HeaderContainer>
           <Typography 
@@ -635,6 +834,13 @@ export default function Home() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               letterSpacing: '-1px',
+              animation: 'gradient 3s ease infinite',
+              backgroundSize: '200% 200%',
+              '@keyframes gradient': {
+                '0%': { backgroundPosition: '0% 50%' },
+                '50%': { backgroundPosition: '100% 50%' },
+                '100%': { backgroundPosition: '0% 50%' },
+              },
             }}
           >
             PDF Table Extractor
@@ -647,7 +853,16 @@ export default function Home() {
               />
             </Tooltip>
             <Tooltip title="Processing settings">
-              <IconButton color="primary" onClick={handleSettingsToggle}>
+              <IconButton 
+                color="primary" 
+                onClick={handleSettingsToggle}
+                sx={{
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'rotate(180deg)',
+                  },
+                }}
+              >
                 <SettingsIcon />
               </IconButton>
             </Tooltip>
@@ -658,10 +873,22 @@ export default function Home() {
           variant="h6" 
           align="center" 
           color="text.secondary"
-          sx={{ mb: 4, maxWidth: '600px', mx: 'auto' }}
+          sx={{ 
+            mb: 4, 
+            maxWidth: '600px', 
+            mx: 'auto',
+            opacity: 0,
+            animation: 'fadeIn 0.5s ease-out forwards',
+            animationDelay: '0.3s',
+            '@keyframes fadeIn': {
+              to: { opacity: 1 },
+            },
+          }}
         >
           Extract tables from your PDF documents quickly and efficiently
         </Typography>
+
+        {renderProcessingStepper()}
 
         <OptionsContainer>
           <OptionChip
@@ -711,64 +938,7 @@ export default function Home() {
           </Typography>
         </DropzoneBox>
 
-        {selectedFiles.length > 0 && (
-          <Box mt={6}>
-            <Typography 
-              variant="h6" 
-              gutterBottom 
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                mb: 3,
-                '&:after': {
-                  content: '""',
-                  flex: 1,
-                  height: '1px',
-                  background: theme.palette.divider,
-                  marginLeft: theme.spacing(2),
-                },
-              }}
-            >
-              Selected Files ({selectedFiles.length})
-            </Typography>
-            {selectedFiles.map((file, index) => (
-              <SelectedFileBox key={index} elevation={2}>
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {file.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Size: {(file.size / 1024).toFixed(1)} KB
-                  </Typography>
-                </Box>
-                <ActionButton
-                  startIcon={<DeleteIcon />}
-                  onClick={() => handleRemoveFile(index)}
-                  color="error"
-                  disabled={isProcessing}
-                  variant="contained"
-                  size="small"
-                >
-                  Remove
-                </ActionButton>
-              </SelectedFileBox>
-            ))}
-            <Box mt={4} display="flex" justifyContent="center">
-              <ActionButton
-                variant="contained"
-                onClick={handleExtractTables}
-                disabled={isProcessing}
-                size="large"
-                sx={{ 
-                  minWidth: isMobile ? '100%' : 250,
-                  py: 2,
-                }}
-              >
-                {isProcessing ? 'Processing...' : 'Extract Tables'}
-              </ActionButton>
-            </Box>
-          </Box>
-        )}
+        {selectedFiles.length > 0 && renderSelectedFiles()}
 
         <ResultsDisplay
           isProcessing={isProcessing}
@@ -798,7 +968,34 @@ export default function Home() {
         </Snackbar>
 
         {renderSettingsDrawer()}
+
+        <FloatingActionButton
+          ariaLabel="actions"
+          icon={<SpeedDialIcon />}
+          direction="up"
+        >
+          {speedDialActions.map((action) => (
+            <SpeedDialAction
+              key={action.name}
+              icon={action.icon}
+              tooltipTitle={action.name}
+              onClick={action.action}
+            />
+          ))}
+        </FloatingActionButton>
+
+        <Backdrop
+          sx={{ 
+            color: '#fff',
+            zIndex: theme.zIndex.drawer + 1,
+            backdropFilter: 'blur(4px)',
+          }}
+          open={showBackdrop}
+          onClick={() => setShowBackdrop(false)}
+        >
+          <CircularProgress color="inherit" />
+        </Backdrop>
       </Box>
-    </Container>
+    </AnimatedContainer>
   );
 } 
