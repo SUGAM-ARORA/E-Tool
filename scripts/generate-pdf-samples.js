@@ -131,114 +131,6 @@ async function generateSamplePDF() {
   console.log('Generated sample1.pdf');
 }
 
-async function generateSample2PDF() {
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([600, 800]);
-  const { width, height } = page.getSize();
-  
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  
-  // Draw Table 1 (Borderless)
-  const table1Y = height - 100;
-  page.drawText('Financial Report - Q4 2023', {
-    x: 50,
-    y: table1Y + 30,
-    font: boldFont,
-    size: 14,
-  });
-  
-  // Headers
-  const headers1 = ['Category', 'Q3 Revenue', 'Q4 Revenue', 'Growth'];
-  const colWidths1 = [150, 100, 100, 100];
-  let currentX = 50;
-  headers1.forEach((header, i) => {
-    page.drawText(header, {
-      x: currentX,
-      y: table1Y,
-      font: boldFont,
-      size: 12,
-    });
-    currentX += colWidths1[i];
-  });
-  
-  // Data rows
-  const data1 = [
-    ['Software', '$1.2M', '$1.5M', '+25%'],
-    ['Hardware', '$800K', '$950K', '+19%'],
-    ['Services', '$500K', '$680K', '+36%'],
-    ['Support', '$300K', '$420K', '+40%'],
-  ];
-  
-  let currentY = table1Y - 20;
-  data1.forEach(row => {
-    currentX = 50;
-    row.forEach((cell, i) => {
-      page.drawText(cell, {
-        x: currentX,
-        y: currentY,
-        font: font,
-        size: 12,
-      });
-      currentX += colWidths1[i];
-    });
-    currentY -= 20;
-  });
-  
-  // Draw Table 2 (Irregular shape with merged cells)
-  const table2Y = height - 350;
-  page.drawText('Project Timeline - 2024', {
-    x: 50,
-    y: table2Y + 30,
-    font: boldFont,
-    size: 14,
-  });
-  
-  // Headers
-  const headers2 = ['Project Phase', 'Q1', 'Q2', 'Q3', 'Q4'];
-  const colWidths2 = [150, 80, 80, 80, 80];
-  currentX = 50;
-  headers2.forEach((header, i) => {
-    page.drawText(header, {
-      x: currentX,
-      y: table2Y,
-      font: boldFont,
-      size: 12,
-    });
-    currentX += colWidths2[i];
-  });
-  
-  // Data rows with merged cells
-  const data2 = [
-    ['Planning', 'Phase 1', '', '', ''],
-    ['Development', '', 'Phase 2', 'Phase 2', ''],
-    ['Testing', '', '', 'Phase 3', 'Phase 3'],
-    ['Deployment', '', '', '', 'Final'],
-  ];
-  
-  currentY = table2Y - 20;
-  data2.forEach(row => {
-    currentX = 50;
-    row.forEach((cell, i) => {
-      if (cell) {
-        page.drawText(cell, {
-          x: currentX,
-          y: currentY,
-          font: font,
-          size: 12,
-        });
-      }
-      currentX += colWidths2[i];
-    });
-    currentY -= 20;
-  });
-  
-  // Save the PDF
-  const pdfBytes = await pdfDoc.save();
-  await fs.writeFile(path.join(__dirname, '../samples/pdfs/sample2.pdf'), pdfBytes);
-  console.log('Generated sample2.pdf');
-}
-
 async function generateSamples() {
   // Create directories if they don't exist
   const dirs = ['../samples/pdfs', '../samples/excel'];
@@ -251,7 +143,6 @@ async function generateSamples() {
   }
   
   await generateSamplePDF();
-  await generateSample2PDF();
 }
 
 generateSamples().catch(console.error); 

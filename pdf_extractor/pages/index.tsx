@@ -271,28 +271,6 @@ const FloatingActionButton = styled(SpeedDial)(({ theme }) => ({
   right: theme.spacing(4),
 }));
 
-const steps = ['Upload PDFs', 'Configure Settings', 'Extract Tables'];
-
-const DropzoneContainer = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(4),
-  textAlign: 'center',
-  cursor: 'pointer',
-  border: `2px dashed ${theme.palette.divider}`,
-  '&:hover': {
-    borderColor: theme.palette.primary.main,
-    backgroundColor: theme.palette.action.hover,
-  },
-  transition: 'all 0.3s ease',
-}));
-
-const IconContainer = styled(Box)(({ theme }) => ({
-  marginBottom: theme.spacing(2),
-  '& svg': {
-    fontSize: 48,
-    color: theme.palette.primary.main,
-  },
-}));
-
 export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -934,20 +912,31 @@ export default function Home() {
 
         {stats.totalProcessed > 0 && renderStats()}
 
-        <DropzoneContainer {...getRootProps()}>
+        <DropzoneBox 
+          {...getRootProps()} 
+          elevation={3}
+          sx={{ 
+            borderColor: isDragActive ? theme.palette.secondary.main : theme.palette.primary.main,
+            transform: isDragActive ? 'scale(1.02)' : 'scale(1)',
+          }}
+        >
           <input {...getInputProps()} />
-          <IconContainer>
-            <OldCloudUploadIcon />
-          </IconContainer>
-          <Typography variant="h6" gutterBottom>
-            {isDragActive
-              ? 'Drop PDFs here'
-              : 'Drag and drop PDFs here, or click to select files'}
+          <CloudUploadIcon 
+            className="upload-icon"
+            sx={{ 
+              fontSize: 80, 
+              color: 'primary.main',
+              mb: 3,
+              opacity: 0.8,
+            }} 
+          />
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+            {isDragActive ? 'Drop your PDFs here' : 'Drop PDF files here or click to upload'}
           </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Supports system-generated PDFs with tables
+          <Typography variant="body1" color="text.secondary">
+            Drag and drop your PDF files here, or click to select files
           </Typography>
-        </DropzoneContainer>
+        </DropzoneBox>
 
         {selectedFiles.length > 0 && renderSelectedFiles()}
 
