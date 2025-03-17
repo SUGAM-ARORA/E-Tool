@@ -1,4 +1,6 @@
-import { PDFDocument, PDFPage, PDFOperator, PDFContentStream } from 'pdf-lib';
+import { PDFDocument, PDFPage, PDFOperator, PDFRef, PDFStream, PDFArray } from 'pdf-lib';
+import { ContentStreamParser } from './content-stream-parser';
+import { TextElement } from './types';
 
 interface Point {
   x: number;
@@ -11,16 +13,6 @@ interface Line {
   width: number;
 }
 
-interface TextElement {
-  text: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fontSize: number;
-  fontName: string;
-}
-
 interface GraphicsState {
   currentFont: string;
   fontSize: number;
@@ -31,6 +23,7 @@ interface GraphicsState {
 export class PDFParser {
   private currentState: GraphicsState;
   private fontMap: Map<string, any>;
+  private contentStreamParser: ContentStreamParser | null;
 
   constructor() {
     this.currentState = {
@@ -40,33 +33,78 @@ export class PDFParser {
       transform: [1, 0, 0, 1, 0, 0], // Identity matrix
     };
     this.fontMap = new Map();
+    this.contentStreamParser = null;
+  }
+
+  private async getStreamContents(page: PDFPage): Promise<Uint8Array | null> {
+    const contents = page.node.Contents();
+    if (!contents) return null;
+
+    try {
+      if (contents instanceof PDFArray) {
+        const streams = contents.asArray();
+        const streamContents = await Promise.all(
+          streams.map(async (stream) => {
+            if (stream instanceof PDFRef) {
+              const resolved = page.doc.context.lookup(stream);
+              return resolved instanceof PDFStream ? resolved.getContents() : new Uint8Array();
+            }
+            return stream instanceof PDFStream ? stream.getContents() : new Uint8Array();
+          })
+        );
+        
+        const totalLength = streamContents.reduce((sum, arr) => sum + arr.length, 0);
+        const combinedContents = new Uint8Array(totalLength);
+        let offset = 0;
+        
+        for (const contents of streamContents) {
+          combinedContents.set(contents, offset);
+          offset += contents.length;
+        }
+        
+        return combinedContents;
+      } else if (contents instanceof PDFRef) {
+        const stream = page.doc.context.lookup(contents);
+        if (stream instanceof PDFStream) {
+          return stream.getContents();
+        }
+      } else if (contents instanceof PDFStream) {
+        return contents.getContents();
+      }
+    } catch (error) {
+      console.error('Error processing stream contents:', error);
+    }
+
+    return null;
   }
 
   async extractTextElements(page: PDFPage): Promise<TextElement[]> {
     const textElements: TextElement[] = [];
-    const contentStream = await page.getContentStream();
-    const operators = await this.parseContentStream(contentStream);
+    const contents = await this.getStreamContents(page);
+    if (!contents) return textElements;
+
+    this.contentStreamParser = new ContentStreamParser(contents);
+    const operators = await this.contentStreamParser.parse();
     
-    let currentText = '';
-    let currentPosition = { x: 0, y: 0 };
+    let currentMatrix = [1, 0, 0, 1, 0, 0]; // Identity matrix
 
     for (const op of operators) {
-      switch (op.operator) {
+      const operatorName = op.getName().toString();
+      switch (operatorName) {
         case 'Tf': // Set font and size
           this.currentState.currentFont = op.args[0].toString();
-          this.currentState.fontSize = parseFloat(op.args[1]);
+          this.currentState.fontSize = parseFloat(op.args[1].toString());
           break;
 
         case 'Tm': // Set text matrix
-          const matrix = op.args.map(parseFloat);
+          const matrix = op.args.map(arg => parseFloat(arg.toString()));
           this.currentState.transform = matrix;
-          currentPosition.x = matrix[4];
-          currentPosition.y = matrix[5];
+          currentMatrix = matrix;
           break;
 
         case 'Td': // Move text position
-          currentPosition.x += parseFloat(op.args[0]);
-          currentPosition.y += parseFloat(op.args[1]);
+          currentMatrix[4] += parseFloat(op.args[0].toString());
+          currentMatrix[5] += parseFloat(op.args[1].toString());
           break;
 
         case 'TJ': // Show text with individual character positioning
@@ -74,8 +112,8 @@ export class PDFParser {
           const text = this.extractTextFromOperator(op);
           if (text) {
             const transformed = this.transformPoint(
-              currentPosition.x,
-              currentPosition.y
+              currentMatrix[4],
+              currentMatrix[5]
             );
             
             textElements.push({
@@ -88,7 +126,7 @@ export class PDFParser {
               fontName: this.currentState.currentFont,
             });
 
-            currentPosition.x += this.calculateTextWidth(text);
+            currentMatrix[4] += this.calculateTextWidth(text);
           }
           break;
       }
@@ -99,29 +137,33 @@ export class PDFParser {
 
   async extractLines(page: PDFPage): Promise<Line[]> {
     const lines: Line[] = [];
-    const contentStream = await page.getContentStream();
-    const operators = await this.parseContentStream(contentStream);
+    const contentStream = await this.getContentStream(page);
+    if (!contentStream) return lines;
+
+    this.contentStreamParser = new ContentStreamParser(contentStream);
+    const operators = await this.contentStreamParser.parse();
     
     let currentPath: Point[] = [];
 
     for (const op of operators) {
-      switch (op.operator) {
+      const operatorName = op.name.toString();
+      switch (operatorName) {
         case 'w': // Set line width
-          this.currentState.lineWidth = parseFloat(op.args[0]);
+          this.currentState.lineWidth = parseFloat(op.args[0].toString());
           break;
 
         case 'm': // Move to
           currentPath = [{
-            x: parseFloat(op.args[0]),
-            y: parseFloat(op.args[1]),
+            x: parseFloat(op.args[0].toString()),
+            y: parseFloat(op.args[1].toString()),
           }];
           break;
 
         case 'l': // Line to
           if (currentPath.length > 0) {
             const point = {
-              x: parseFloat(op.args[0]),
-              y: parseFloat(op.args[1]),
+              x: parseFloat(op.args[0].toString()),
+              y: parseFloat(op.args[1].toString()),
             };
             currentPath.push(point);
           }
@@ -140,7 +182,6 @@ export class PDFParser {
                 currentPath[i].y
               );
 
-              // Only add if it's likely a table line (horizontal or vertical)
               if (this.isTableLine(start, end)) {
                 lines.push({
                   start,
@@ -158,10 +199,17 @@ export class PDFParser {
     return this.mergeConnectedLines(lines);
   }
 
-  private async parseContentStream(contentStream: PDFContentStream): Promise<PDFOperator[]> {
-    // Parse the content stream to get operators
-    // This is a simplified version - you'll need to implement proper PDF content stream parsing
-    return [];
+  private extractTextFromOperator(operator: PDFOperator): string {
+    const operatorName = operator.getName().toString();
+    if (operatorName === 'TJ') {
+      return operator.getArgs()[0]
+        .map((arg: any) => arg.toString())
+        .filter((str: string) => str.trim().length > 0)
+        .join('');
+    } else if (operatorName === 'Tj') {
+      return operator.getArgs()[0].toString();
+    }
+    return '';
   }
 
   private transformPoint(x: number, y: number): Point {
@@ -176,19 +224,6 @@ export class PDFParser {
     // Calculate text width based on font metrics
     // This is a simplified version - you'll need to implement proper font metric calculations
     return text.length * this.currentState.fontSize * 0.6;
-  }
-
-  private extractTextFromOperator(operator: PDFOperator): string {
-    // Extract text from TJ or Tj operator
-    // This is a simplified version - you'll need to implement proper text extraction
-    if (operator.operator === 'TJ') {
-      return operator.args[0]
-        .filter((arg: any) => typeof arg === 'string')
-        .join('');
-    } else if (operator.operator === 'Tj') {
-      return operator.args[0].toString();
-    }
-    return '';
   }
 
   private mergeAdjacentText(elements: TextElement[]): TextElement[] {
